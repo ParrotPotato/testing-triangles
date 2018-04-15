@@ -1,5 +1,8 @@
 #version 130
+
 in vec3 position;
+in vec3 fragmentcolor;
+
 out vec3 color;
 
 uniform float time;
@@ -10,7 +13,8 @@ uniform int staticDrawing;
 
 
 void main(){
-    if(staticDrawing == 0){
+    if(staticDrawing == 0)
+    {
         float distance = sqrt((position.x - lightPositionx)*(position.x - lightPositionx)  + (position.y - lightPositiony)*(position.y - lightPositiony));
         if(condition == 0){
             if(distance < 0.3){
@@ -59,9 +63,8 @@ void main(){
             );
         }
         //color = vec3(abs(sin(time)),abs(cos(time)),abs(sin(time)+cos(time))/2);
+        return ;
     }
-    else {
-        color = vec3(0.36,0.75,0.54);
-    }
+    color = fragmentcolor;
 }
 
