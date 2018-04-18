@@ -150,7 +150,7 @@ int main(int argc,char **argv){
         glBindBuffer(GL_ARRAY_BUFFER,vertexbuffer);
         glVertexAttribPointer(
             0,
-            3,
+			3,
             GL_FLOAT,
             GL_FALSE,
             0,
