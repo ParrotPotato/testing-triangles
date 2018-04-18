@@ -57,9 +57,9 @@ void main(){
         }
         else if(condition == 4){
             color = vec3(
-            1 - abs(sin(time) + 1  + position.x*2 +  0.5 )/3, 
-            1 - abs(cos(time+ 3 )*sin(time - 3) + position.y*position.x*4/3 + 0.5 ) , 
-            1 - abs(sin(time/2) + cos(time*2)  + position.x*2 + position.y*2  + 0.5 )/3   
+                1 - abs(sin(time) + 1  + position.x*2 +  0.5 )/3, 
+                1 - abs(cos(time+ 3 )*sin(time - 3) + position.y*position.x*4/3 + 0.5 ) , 
+                1 - abs(sin(time/2) + cos(time*2)  + position.x*2 + position.y*2  + 0.5 )/3   
             );
         }
         //color = vec3(abs(sin(time)),abs(cos(time)),abs(sin(time)+cos(time))/2);
