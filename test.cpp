@@ -134,9 +134,6 @@ int main(int argc,char **argv){
     glBindBuffer(GL_ARRAY_BUFFER,colorbuffer);
     glBufferData(GL_ARRAY_BUFFER,sizeof(colordata),colordata,GL_STATIC_DRAW);
 
-    cout << "vertexAttribArrayID = " << vertexArrayID << endl;
-    cout << "vertexBufferID = " << vertexbuffer << endl;
-    cout << "colorBufferID  = " << colorbuffer << endl;
     GLuint program = LoadShader("t_vertshader.vert","t_fragshader.frag");
     GLint matrixLocation = glGetUniformLocation(program,"MVP");
     
@@ -186,104 +183,83 @@ int main(int argc,char **argv){
     }
 }
 
+std::string loadFile(const char* filePath){
+	std::string file_data ; 
+	std::string line;
+	ifstream file(filePath,std::ios::in);
+	if(!file.is_open()){
+		cout << "File : " << filePath << " unable to open " << endl;
+		return "";
+	}
+	while(getline(file,line)){
+		file_data += line + "\n";
+	}
+	file.close();
+	return file_data;
+}
 
-//functions for loading, compiling and linking the shaders to a program and returning that program 
+GLuint compileShader(GLuint shaderID,const char* shader_source,const char* errorMessage){
+	GLint result;
+	int infoLenght;
+	glShaderSource(shaderID,1,&shader_source,NULL);
+	glCompileShader(shaderID);
+	glGetShaderiv(shaderID,GL_COMPILE_STATUS,&result);
+	glGetShaderiv(shaderID,GL_INFO_LOG_LENGTH,&infoLenght);
+	if(infoLenght > 0){
+		std::vector<char> VertexShaderErrorMessage(infoLenght+1);
+		glGetShaderInfoLog(shaderID, infoLenght, NULL, &VertexShaderErrorMessage[0]);
+		cout << "Error  : " << errorMessage << endl;
+		printf("		%s\n", &VertexShaderErrorMessage[0]);
+		return (GLuint)0;
+	}
+	return (GLuint)1;
+}
+
+GLuint linkProgram(GLuint programID, GLuint vertexShader, GLuint fragmentShader){
+	GLint result;
+	int infoLenght;
+
+	glAttachShader(programID,vertexShader);
+	glAttachShader(programID,fragmentShader);
+	glLinkProgram(programID);
+	glGetProgramiv(programID,GL_LINK_STATUS,&result);
+	glGetProgramiv(programID,GL_INFO_LOG_LENGTH,&infoLenght);
+	if(infoLenght > 0){
+		std::vector<char> ProgramErrorMessage(infoLenght+1);
+		glGetProgramInfoLog(programID, infoLenght, NULL, &ProgramErrorMessage[0]);
+		cout << "Error : Linking Program " <<endl;
+		printf("		%s\n", &ProgramErrorMessage[0]);
+		return (GLuint)0;
+	}
+	return (GLuint)1;
+}
+
 GLuint LoadShader(const char* vertexFilePath,const char* fragmentFilePath){
-	//Creting shaders
+
 	GLuint vertexShaderID = glCreateShader(GL_VERTEX_SHADER);
 	GLuint fragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
-	//reading files 
-	string vertexShaderCode ;
-	ifstream vertexShaderFile(vertexFilePath,std::ios::in);
-	if(vertexShaderFile.is_open()){
-		string line = "";
-		while(getline(vertexShaderFile,line)){
-			vertexShaderCode += "\n" + line;
-		}
-		vertexShaderFile.close();
-	}
-	else {
-		cout << "	VertexFile unable to open ... " << endl;
+
+	string vertexShaderCode = loadFile(vertexFilePath);
+	if(vertexShaderCode == ""){
 		return 0;
 	}
-	//cout << "=========== VertexFileData ========" << vertexShaderCode << "\n==============================" <<endl;
-	string fragmentShaderCode;
-	ifstream fragmentShaderFile(fragmentFilePath,std::ios::in);
-	if(fragmentShaderFile.is_open()){
-		string line = "";
-		while(getline(fragmentShaderFile,line)){
-			fragmentShaderCode += "\n" + line;
-		}
-		fragmentShaderFile.close();
-	}
-	else {
-		cout << "	FragmentFile unable to open ... " << endl;
+	string fragmentShaderCode = loadFile(fragmentFilePath);
+	if(fragmentShaderCode == ""){
 		return 0;
 	}
-	//cout << "=========== FragmentFileData ========" << fragmentShaderCode << "\n==============================" <<endl;
-	GLint result = GL_FALSE;
-	int infoLogLenght;
-	//compiliing shaders
-//	cout << "	Compiling Shader : " << vertexFilePath << endl;
-	const char* vertexData = vertexShaderCode.c_str();
-	glShaderSource(vertexShaderID,1,&vertexData,NULL);
-	glCompileShader(vertexShaderID);
-	////error checking code ////
-	glGetShaderiv(vertexShaderID,GL_COMPILE_STATUS,&result);
-	glGetShaderiv(vertexShaderID,GL_INFO_LOG_LENGTH,&infoLogLenght);
-	if(infoLogLenght > 0){
-		std::vector<char> VertexShaderErrorMessage(infoLogLenght+1);
-		glGetShaderInfoLog(vertexShaderID, infoLogLenght, NULL, &VertexShaderErrorMessage[0]);
-		cout << "Error : VertexShader" << vertexFilePath <<  endl;
-		printf("		%s\n", &VertexShaderErrorMessage[0]);
-	}
-	////////////////////////////
-	result = GL_FALSE;
-	infoLogLenght = 0 ;
-	////////////////////////////
-//	cout << "	Compiling Shader : " << fragmentFilePath << endl;
-	const char* fragmentData = fragmentShaderCode.c_str();
-	glShaderSource(fragmentShaderID,1,&fragmentData,NULL);
-	glCompileShader(fragmentShaderID);
-	///error checking code ////
-	glGetShaderiv(fragmentShaderID,GL_COMPILE_STATUS,&result);
-	glGetShaderiv(fragmentShaderID,GL_INFO_LOG_LENGTH,&infoLogLenght);
-	if(infoLogLenght > 0){
-		std::vector<char> FragmentShaderErrorMessage(infoLogLenght+1);
-		glGetShaderInfoLog(fragmentShaderID, infoLogLenght, NULL, &FragmentShaderErrorMessage[0]);
-		cout << "Error : FragmentShader -> " << fragmentFilePath << endl;
-		printf("		%s\n", &FragmentShaderErrorMessage[0]);
-	}
+	compileShader(vertexShaderID,vertexShaderCode.c_str(),"VertexShader failed to compile");
+	compileShader(fragmentShaderID,fragmentShaderCode.c_str(),"FragmentShader failed to compile");
 
-	////linking program ////
-//	cout << "	Creating Shader program " << endl;
-    //binding the attribute to the vertexShader 
-
-    /////////////////////////////////////////////
 	GLuint program = glCreateProgram();
     
     glBindAttribLocation(program,0,"vertexposition");
     glBindAttribLocation(program,1,"vertexColor");
 
-	glAttachShader(program,vertexShaderID);
-	glAttachShader(program,fragmentShaderID);
-//	cout << "	Attaching Shader program " << endl; 
-	glLinkProgram(program);
-	///error checking in linking /// 
-	glGetProgramiv(program,GL_LINK_STATUS,&result);
-	glGetProgramiv(program,GL_INFO_LOG_LENGTH,&infoLogLenght);
-	if(infoLogLenght > 0){
-		std::vector<char> ProgramErrorMessage(infoLogLenght+1);
-		glGetProgramInfoLog(program, infoLogLenght, NULL, &ProgramErrorMessage[0]);
-		cout << "Error : Linking Program " <<endl;
-		printf("		%s\n", &ProgramErrorMessage[0]);
-	}
-//	cout << "	Deleting Shader Code " << endl;
+	linkProgram(program,vertexShaderID,fragmentShaderID);
+
 	glDetachShader(program,vertexShaderID);
 	glDetachShader(program,fragmentShaderID);
 	glDeleteShader(vertexShaderID);
 	glDeleteShader(fragmentShaderID);
-
-	//Testing the map functions 
 	return program;
 }
