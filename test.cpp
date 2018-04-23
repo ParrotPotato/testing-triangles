@@ -160,7 +160,7 @@ int main(int argc,char **argv){
         glBindBuffer(GL_ARRAY_BUFFER,vertexbuffer);
         glVertexAttribPointer(
             0,
-            3,
+			3,
             GL_FLOAT,
             GL_FALSE,
             0,
@@ -351,7 +351,6 @@ GLuint LoadShader(const char* vertexFilePath,const char* fragmentFilePath){
 	}
 	compileShader(vertexShaderID,vertexShaderCode.c_str(),"VertexShader failed to compile");
 	compileShader(fragmentShaderID,fragmentShaderCode.c_str(),"FragmentShader failed to compile");
-
 	GLuint program = glCreateProgram();
     
     glBindAttribLocation(program,0,"vertexposition");
