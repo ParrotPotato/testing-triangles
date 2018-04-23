@@ -11,7 +11,7 @@
 #include <SOIL/SOIL.h>
 #include <ctime>
 #include <thread>
-
+#include <string.h>
 
 using namespace std;
 
@@ -98,32 +98,98 @@ GLfloat colordata[] = {
 
 GLuint LoadShader(const char* vertexShader, const char* fragmentShader);
 
+int loadModel(const char * path,std::vector < glm::vec3 > & out_vertices,std::vector < glm::vec2 > & out_uvs,std::vector < glm::vec3 > & out_normals){
+    std::vector< unsigned int > vertexIndices, uvIndices, normalIndices;
+    std::vector< glm::vec3 > temp_vertices;
+    std::vector< glm::vec2 > temp_uvs;
+    std::vector< glm::vec3 > temp_normals;
+    
+    FILE *file = fopen(path,"r");
+    if(file == NULL){        
+        printf("File unable to open");
+        return -1 ;        
+    }
+
+    while(1){
+        char lineHeader[128];
+
+        int res = fscanf(file,"%s",lineHeader);
+        if(res == EOF){
+            break;
+        }
+        else{
+            if(strcmp(lineHeader,"v") == 0 ){
+                glm::vec3 vertex;
+                fscanf(file,"%f %f %f\n",&vertex.x,&vertex.y,&vertex.z);
+                temp_vertices.push_back(vertex);
+            }
+            else if ( strcmp( lineHeader, "vt" ) == 0 ){
+                glm::vec2 uv;
+                fscanf(file, "%f %f\n", &uv.x, &uv.y );
+                temp_uvs.push_back(uv);
+            }
+            else if ( strcmp( lineHeader, "vn" ) == 0 ){
+                glm::vec3 normal;
+                fscanf(file, "%f %f %f\n", &normal.x, &normal.y, &normal.z );
+                temp_normals.push_back(normal);
+            }
+            else if ( strcmp( lineHeader, "f" ) == 0 ){
+                std::string vertex1, vertex2, vertex3;
+                unsigned int vertexIndex[3], uvIndex[3], normalIndex[3];
+                int matches = fscanf(file, "%d/%d/%d %d/%d/%d %d/%d/%d\n", &vertexIndex[0], &uvIndex[0], &normalIndex[0], &vertexIndex[1], &uvIndex[1], &normalIndex[1], &vertexIndex[2], &uvIndex[2], &normalIndex[2] );
+                if (matches != 9){
+                    printf("File can't be read by our simple parser : ( Try exporting with other options\n");
+                    return false;
+                }
+                vertexIndices.push_back(vertexIndex[0]);
+                vertexIndices.push_back(vertexIndex[1]);
+                vertexIndices.push_back(vertexIndex[2]);
+                uvIndices    .push_back(uvIndex[0]);
+                uvIndices    .push_back(uvIndex[1]);
+                uvIndices    .push_back(uvIndex[2]);
+                normalIndices.push_back(normalIndex[0]);
+                normalIndices.push_back(normalIndex[1]);
+                normalIndices.push_back(normalIndex[2]);
+            }
+        }
+    }
+
+    for( unsigned int i=0; i<vertexIndices.size(); i++ ){
+        unsigned int vertexIndex = vertexIndices[i];
+        glm::vec3 vertex = temp_vertices[ vertexIndex-1 ];
+        out_vertices.push_back(vertex);
+    }
+
+    for( unsigned int i=0; i<uvIndices.size(); i++ ){
+        unsigned int vertexIndex = uvIndices[i];
+        glm::vec2 vertex = temp_uvs[ vertexIndex-1 ];
+        out_uvs.push_back(vertex);
+    }
+
+    for( unsigned int i=0; i<normalIndices.size(); i++ ){
+        unsigned int vertexIndex = normalIndices[i];
+        glm::vec3 vertex = temp_normals[ vertexIndex-1 ];
+        out_normals.push_back(vertex);
+    }
+}
+
 
 int main(int argc,char **argv){
-	
-	SDL_Init(SDL_INIT_EVERYTHING);
+    SDL_Init(SDL_INIT_EVERYTHING);
     int height = 400;
     int width = 600;
-    
-	SDL_Window* window = SDL_CreateWindow("Test",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,600,400,SDL_WINDOW_OPENGL);
+    SDL_Window* window = SDL_CreateWindow("Test",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,600,400,SDL_WINDOW_OPENGL);
     bool windowRunning = true;
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER,1);
     SDL_GLContext context = SDL_GL_CreateContext(window);
     
     GLenum erro = glewInit();
     glClearColor(0.0,0.3,0.5,1.0);
-	glClearDepth(1.0f);
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LESS);
+
     glm::mat4 Projection = glm::perspective(glm::radians(45.0f),(float)width/(float)height,0.1f,100.0f);
-	glm::vec3 cameraPosition = glm::vec3(4,3,3);
-	glm::vec3 lookingAt = glm::vec3(0,0,0);
-	double angle_xz = glm::atan((double)4/(double)3);
-	double angle_y = glm::atan((double)3/(double)5);
-	glm::vec3 lookingDirection = lookingAt - cameraPosition ; 
 	glm::mat4 view = glm::lookAt(
-		cameraPosition,
-		lookingAt,
+		glm::vec3(4,3,3),
+		glm::vec3(0,0,0),
 		glm::vec3(0,1,0)
 	);
 
@@ -134,10 +200,14 @@ int main(int argc,char **argv){
     glGenVertexArrays(2,&vertexArrayID);
     glBindVertexArray(vertexArrayID);
 
+    std::vector< glm::vec3 > vertices;
+    std::vector< glm::vec2 > uvs;
+    std::vector< glm::vec3 > normals;
+    int res = loadModel("cube.obj", vertices, uvs, normals);
     GLuint vertexbuffer ;
 	glGenBuffers(1,&vertexbuffer);
 	glBindBuffer(GL_ARRAY_BUFFER,vertexbuffer);
-	glBufferData(GL_ARRAY_BUFFER,sizeof(cudedata),cudedata,GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
     
     GLuint colorbuffer;
     glGenBuffers(1,&colorbuffer);
@@ -149,14 +219,13 @@ int main(int argc,char **argv){
     
     SDL_Event event ; 
     while(windowRunning){
-        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-
+        glClear(GL_COLOR_BUFFER_BIT);
+        
         glUseProgram(program);
-		
+
         glUniformMatrix4fv(matrixLocation,1,GL_FALSE,&mvp[0][0]);
 
         glEnableVertexAttribArray(0);
-        glEnableVertexAttribArray(1);
         glBindBuffer(GL_ARRAY_BUFFER,vertexbuffer);
         glVertexAttribPointer(
             0,
@@ -166,122 +235,19 @@ int main(int argc,char **argv){
             0,
             (void *)0
         );
-        glDrawArrays(GL_TRIANGLES,0,36);
-        glBindBuffer(GL_ARRAY_BUFFER,0);
-        glBindBuffer(GL_ARRAY_BUFFER,colorbuffer);
-        glVertexAttribPointer(
-            1,
-            3,
-            GL_FLOAT,
-            GL_FALSE,
-            0,
-            (void *)0
-        );
+        glDrawArrays(GL_TRIANGLES,0,vertices.size()*3);
         glBindBuffer(GL_ARRAY_BUFFER,0);
         glDisableVertexAttribArray(0);
-        glDisableVertexAttribArray(1);
         glUseProgram(0);
 
-		while(SDL_PollEvent(&event)){
-        	switch(event.type){
-            case SDL_QUIT:
-                windowRunning = false;
+        while(SDL_PollEvent(&event)){
+            switch(event.type){
+                case SDL_QUIT:
+                    windowRunning = false;
                 break;
-			case SDL_KEYDOWN:
-				switch(event.key.keysym.sym){
-					case SDLK_w:
-						cameraPosition = cameraPosition + lookingDirection*glm::vec3(0.1);
-						cout << "Camera at (" << cameraPosition.x << "," << cameraPosition.y << "," << cameraPosition.z << ")" << endl;
-						lookingDirection = glm::normalize(lookingAt - cameraPosition); 
-						view = glm::lookAt(
-								cameraPosition,
-								lookingAt,
-								glm::vec3(0,1,0)
-							);
-						mvp = Projection * view * model ; 	
-					break;
-					case SDLK_a:
-						angle_xz -= 0.01;
-						cameraPosition.x = 5*glm::sin(angle_xz);
-						cameraPosition.z = 5*glm::cos(angle_xz);
-						//cameraPosition.x = cameraPosition.x + 0.1 ;
-						//cameraPosition.z = cameraPosition.z - 0.1 ;
-						cout << "Camera at (" << cameraPosition.x << "," << cameraPosition.y << "," << cameraPosition.z << ")" << endl;
-						lookingDirection = glm::normalize(lookingAt - cameraPosition); 
-						view = glm::lookAt(
-								cameraPosition,
-								lookingAt,
-								glm::vec3(0,1,0)
-							);
-						mvp = Projection * view * model ; 
-					break;
-					case SDLK_s:
-						cameraPosition = cameraPosition - lookingDirection*glm::vec3(0.1);
-						cout << "Camera at (" << cameraPosition.x << "," << cameraPosition.y << "," << cameraPosition.z << ")" << endl;
-						lookingDirection = glm::normalize(lookingAt - cameraPosition); 
-						view = glm::lookAt(
-								cameraPosition,
-								lookingAt,
-								glm::vec3(0,1,0)
-							);
-						mvp = Projection * view * model ; 	
-					break;
-					case SDLK_d:
-						angle_xz += 0.01;
-						cameraPosition.x = 5*glm::sin(angle_xz);
-						cameraPosition.z = 5*glm::cos(angle_xz);
-						cout << "Camera at (" << cameraPosition.x << "," << cameraPosition.y << "," << cameraPosition.z << ")" << endl;
-						lookingDirection = glm::normalize(lookingAt - cameraPosition); 
-						view = glm::lookAt(
-								cameraPosition,
-								lookingAt,
-								glm::vec3(0,1,0)
-							);
-						mvp = Projection * view * model ; 	
-					break;
-					case SDLK_q:
-						cameraPosition = glm::vec3(4,3,3);
-						cout << "Camera at (" << cameraPosition.x << "," << cameraPosition.y << "," << cameraPosition.z << ")" << endl;
-						lookingAt = glm::vec3(0,0,0);
-						angle_xz = glm::atan((double)4/(double)3);
-						angle_y = glm::atan((double)3/(double)5);
-						lookingDirection = glm::normalize(lookingAt - cameraPosition); 
-						view = glm::lookAt(
-								cameraPosition,
-								lookingAt,
-								glm::vec3(0,1,0)
-							);
-						mvp = Projection * view * model ; 	
-					break;
-					case SDLK_r:
-						angle_y += 0.01 ;
-						cameraPosition.y = glm::sin(angle_y) * glm::distance(glm::vec3(4,3,3),glm::vec3(0,0,0));
-						cout << "Camera at (" << cameraPosition.x << "," << cameraPosition.y << "," << cameraPosition.z << ")" << endl;
-						lookingDirection = glm::normalize(lookingAt - cameraPosition); 
-						view = glm::lookAt(
-								cameraPosition,
-								lookingAt,
-								glm::vec3(0,1,0)
-							);
-						mvp = Projection * view * model ; 
-						break;	
-					case SDLK_f:
-						angle_y -= 0.01 ;
-						cameraPosition.y = glm::sin(angle_y) * glm::distance(glm::vec3(4,3,3),glm::vec3(0,0,0));
-						cout << "Camera at (" << cameraPosition.x << "," << cameraPosition.y << "," << cameraPosition.z << ")" << endl;
-						lookingDirection = glm::normalize(lookingAt - cameraPosition); 
-						view = glm::lookAt(
-								cameraPosition,
-								lookingAt,
-								glm::vec3(0,1,0)
-							);
-						mvp = Projection * view * model ; 
-						break;	
-				}
-				break;
+            }
         }
-    }
-		SDL_GL_SwapWindow(window);
+        SDL_GL_SwapWindow(window);
     }
 }
 
